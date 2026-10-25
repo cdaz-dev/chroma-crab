@@ -1,0 +1,9 @@
+{
+  "name": "Crab Silver",
+  "base": "dark",
+  "overrides": {
+    "clawd_body": "#c0caf5",
+    "promptBorder": "#c0caf5",
+    "promptBorderShimmer": "#d6ddf8"
+  }
+}

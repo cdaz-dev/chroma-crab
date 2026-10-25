@@ -1,0 +1,9 @@
+{
+  "name": "Crab Yellow",
+  "base": "dark",
+  "overrides": {
+    "clawd_body": "#e0af68",
+    "promptBorder": "#e0af68",
+    "promptBorderShimmer": "#ebcb9d"
+  }
+}

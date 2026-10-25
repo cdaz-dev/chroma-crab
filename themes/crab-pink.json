@@ -1,0 +1,9 @@
+{
+  "name": "Crab Pink",
+  "base": "dark",
+  "overrides": {
+    "clawd_body": "#ff75a0",
+    "promptBorder": "#ff75a0",
+    "promptBorderShimmer": "#ffa5c1"
+  }
+}

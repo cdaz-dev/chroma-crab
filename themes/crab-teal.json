@@ -1,0 +1,9 @@
+{
+  "name": "Crab Teal",
+  "base": "dark",
+  "overrides": {
+    "clawd_body": "#73daca",
+    "promptBorder": "#73daca",
+    "promptBorderShimmer": "#a4e7dd"
+  }
+}

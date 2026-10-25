@@ -1,0 +1,9 @@
+{
+  "name": "Crab Cyan",
+  "base": "dark",
+  "overrides": {
+    "clawd_body": "#7dcfff",
+    "promptBorder": "#7dcfff",
+    "promptBorderShimmer": "#aae0ff"
+  }
+}

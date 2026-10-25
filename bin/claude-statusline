@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Claude Code status line: a visual context-window gauge. macOS and Linux,
+# needs jq. Windows has its own version in windows/claude-statusline.ps1.
+#
+# Reads the status-line JSON on stdin (see `context_window` in the payload) and
+# prints one line. The bar is tinted with this window's crab colour, so the
+# gauge doubles as the window identity marker. See claude-crab.
+set -u
+
+payload=$(cat)
+
+if [ "${CLAUDE_STATUSLINE_DEBUG:-0}" = 1 ]; then
+  mkdir -p "$HOME/.cache"
+  printf '%s\n' "$payload" > "$HOME/.cache/claude-statusline.json"
+fi
+
+# Split on US (0x1f), not tab: tab is an IFS whitespace char, so consecutive
+# tabs collapse and an empty field would shift everything after it.
+IFS=$'\x1f' read -r model cwd projdir used total pct cost <<<"$(
+  printf '%s' "$payload" | jq -j '
+    [ (.model.display_name // "claude"),
+      (.workspace.current_dir // ""),
+      (.workspace.project_dir // ""),
+      (.context_window.total_input_tokens // 0),
+      (.context_window.context_window_size // 0),
+      (.context_window.used_percentage // -1),
+      (.cost.total_cost_usd // 0)
+    ]
+    | map(tostring | gsub("[\n\t\u001f]"; " "))
+    | join("\u001f")' 2>/dev/null
+)"
+
+# Percentage: prefer the value Claude Code computes, fall back to raw division.
+pct=$(awk -v p="$pct" -v u="$used" -v t="$total" 'BEGIN{
+  if (p >= 0) v = p; else if (t > 0) v = u * 100 / t; else v = 0
+  if (v < 0) v = 0; if (v > 100) v = 100
+  printf "%.0f", v
+}')
+
+fmt() {
+  awk -v n="$1" 'BEGIN{
+    if (n >= 1000000) printf "%.1fM", n/1000000
+    else if (n >= 1000) printf "%.0fk", n/1000
+    else printf "%d", n
+  }'
+}
+
+# --- colours ---------------------------------------------------------------
+# The crab slug is exported by the claude-crab launcher; look its hex up in the
+# theme file so adding a new crab colour needs no change here.
+crab_hex="#7aa2f7"
+slug="${CLAUDE_CRAB_COLOUR:-}"
+theme="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/themes/$slug.json"
+if [ -n "$slug" ] && [ -f "$theme" ]; then
+  h=$(jq -r '.overrides.clawd_body // empty' "$theme")
+  [ -n "$h" ] && crab_hex="$h"
+fi
+
+ansi() { # #rrggbb -> SGR truecolour foreground
+  local x="${1#\#}"
+  printf '\033[38;2;%d;%d;%dm' "0x${x:0:2}" "0x${x:2:2}" "0x${x:4:2}"
+}
+
+C_BAR=$(ansi "$crab_hex")
+C_DIM=$(ansi "#565f89")
+C_TXT=$(ansi "#a9b1d6")
+RESET=$'\033[0m'
+
+# Pressure colour for the number: calm, then warn, then alarm.
+warn=$(awk -v p="$pct" 'BEGIN{ print (p >= 90) ? 2 : ((p >= 70) ? 1 : 0) }')
+case "$warn" in
+  2) C_PCT=$(ansi "#f7768e") ;;
+  1) C_PCT=$(ansi "#e0af68") ;;
+  *) C_PCT=$C_BAR ;;
+esac
+
+# --- bar -------------------------------------------------------------------
+WIDTH=20
+eighths=$(awk -v p="$pct" -v w="$WIDTH" 'BEGIN{ printf "%d", (p/100*w*8) + 0.5 }')
+full=$((eighths / 8))
+rem=$((eighths % 8))
+[ "$full" -gt "$WIDTH" ] && { full=$WIDTH; rem=0; }
+
+partials=("" "▏" "▎" "▍" "▌" "▋" "▊" "▉")
+bar=""
+for ((i = 0; i < full; i++)); do bar+="█"; done
+if [ "$rem" -gt 0 ] && [ "$full" -lt "$WIDTH" ]; then
+  bar+="${partials[$rem]}"
+  full=$((full + 1))
+fi
+empty=""
+for ((i = full; i < WIDTH; i++)); do empty+="░"; done
+
+# --- path ------------------------------------------------------------------
+dir="${cwd:-$PWD}"
+label="${dir##*/}"
+[ -n "$projdir" ] && [ "$dir" != "$projdir" ] && label="${projdir##*/}/${label}"
+
+# --- assemble --------------------------------------------------------------
+line="${C_BAR}▍${RESET} ${C_TXT}${model}${RESET} ${C_DIM}·${RESET} ${C_TXT}${label}${RESET}"
+if [ "${total:-0}" -gt 0 ] 2>/dev/null; then
+  line+="  ${C_DIM}▕${RESET}${C_BAR}${bar}${RESET}${C_DIM}${empty}▏${RESET} "
+  line+="${C_PCT}${pct}%${RESET} ${C_DIM}$(fmt "$used")/$(fmt "$total")${RESET}"
+fi
+
+if awk -v c="$cost" 'BEGIN{ exit !(c >= 0.01) }'; then
+  line+="  ${C_DIM}\$$(printf '%.2f' "$cost")${RESET}"
+fi
+
+printf '%s' "$line"

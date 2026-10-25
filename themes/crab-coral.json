@@ -1,0 +1,9 @@
+{
+  "name": "Crab Coral",
+  "base": "dark",
+  "overrides": {
+    "clawd_body": "#f7768e",
+    "promptBorder": "#f7768e",
+    "promptBorderShimmer": "#faa6b6"
+  }
+}

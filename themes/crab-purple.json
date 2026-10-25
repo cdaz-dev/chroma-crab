@@ -1,0 +1,9 @@
+{
+  "name": "Crab Purple",
+  "base": "dark",
+  "overrides": {
+    "clawd_body": "#bb9af7",
+    "promptBorder": "#bb9af7",
+    "promptBorderShimmer": "#d3bdfa"
+  }
+}

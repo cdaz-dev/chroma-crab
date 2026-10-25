@@ -1,0 +1,47 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash version
+        run: bash --version | head -1
+      # macOS runs the tests with its stock bash 3.2 on purpose, since that is
+      # what /usr/bin/env bash finds on a Mac without Homebrew bash.
+      - run: /bin/bash test/run.sh
+      - name: install.sh
+        run: |
+          BIN_DIR="$RUNNER_TEMP/bin" CLAUDE_CONFIG_DIR="$RUNNER_TEMP/cfg" ./install.sh
+          test -x "$RUNNER_TEMP/bin/claude-crab"
+          test -f "$RUNNER_TEMP/cfg/themes/crab-coral.json"
+
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: $PSVersionTable.PSVersion
+      - run: ./test/run.ps1
+      - name: install.ps1
+        run: |
+          $env:CLAUDE_CONFIG_DIR = "$env:RUNNER_TEMP\cfg"
+          ./install.ps1 -Alias
+          if (-not (Test-Path "$env:LOCALAPPDATA\claude-crab\bin\claude-crab.cmd")) { throw 'shim missing' }
+          if (-not (Test-Path "$env:RUNNER_TEMP\cfg\themes\crab-coral.json")) { throw 'themes missing' }
+          if (-not ([Environment]::GetEnvironmentVariable('Path', 'User') -split ';' -contains "$env:LOCALAPPDATA\claude-crab\bin")) { throw 'PATH not updated' }
+          if (-not ((Get-Content $PROFILE -Raw) -match 'claude-crab')) { throw 'profile not updated' }

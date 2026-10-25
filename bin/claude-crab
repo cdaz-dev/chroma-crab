@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Launch Claude Code with a crab colour that no other open window is using,
+# so you can tell terminal windows apart at a glance. macOS and Linux.
+# Windows has its own version in windows/claude-crab.ps1.
+
+set -u
+
+CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/claude-crab"
+mkdir -p "$STATE"
+
+# Handed out in this order. Override with e.g. CLAUDE_CRAB_COLOURS="crab-teal crab-pink".
+# shellcheck disable=SC2206
+COLOURS=(${CLAUDE_CRAB_COLOURS:-crab-coral crab-orange crab-yellow crab-green crab-teal
+         crab-cyan crab-blue crab-purple crab-pink crab-silver})
+
+holder_alive() {
+  [ -n "$1" ] && kill -0 "$1" 2>/dev/null || return 1
+  # Guard against PID reuse: the holder must still be a claude process.
+  # ps -o command= works the same on macOS and Linux; /proc does not exist on macOS.
+  ps -p "$1" -o command= 2>/dev/null | grep -q claude
+}
+
+# Drop claim files whose window is gone.
+for f in "$STATE"/*.pid; do
+  [ -e "$f" ] || continue
+  holder_alive "$(cat "$f" 2>/dev/null)" || rm -f "$f"
+done
+
+# Claim the first free colour. noclobber makes the create atomic, so two
+# windows opened in the same instant cannot grab the same one.
+slug="" claim=""
+for c in "${COLOURS[@]}"; do
+  if (set -C; echo $$ > "$STATE/$c.pid") 2>/dev/null; then
+    slug="$c" claim="$STATE/$c.pid"
+    break
+  fi
+done
+
+# All taken: borrow one at random without claiming it.
+[ -n "$slug" ] || slug="${COLOURS[RANDOM % ${#COLOURS[@]}]}"
+[ -n "$claim" ] && trap 'rm -f "$claim"' EXIT HUP INT TERM
+
+# The status line reads this to tint its context gauge to match the crab.
+export CLAUDE_CRAB_COLOUR="$slug"
+
+# Settings go in through a file rather than a JSON string on the command line.
+# --settings merges over ~/.claude/settings.json key by key, so nothing else
+# in your config changes.
+here="$(cd "$(dirname "$0")" && pwd)"
+settings="$STATE/$slug.settings.json"
+if [ "${CLAUDE_CRAB_STATUSLINE:-1}" = 0 ] || [ ! -x "$here/claude-statusline" ]; then
+  printf '{"theme":"custom:%s"}\n' "$slug" > "$settings"
+else
+  printf '{"theme":"custom:%s","statusLine":{"type":"command","command":"'\''%s'\''","padding":0}}\n' \
+    "$slug" "$here/claude-statusline" > "$settings"
+fi
+
+if [ ! -f "$CONFIG/themes/$slug.json" ]; then
+  echo "claude-crab: no theme file at $CONFIG/themes/$slug.json (did you run install.sh?)" >&2
+fi
+
+# From a desktop keybind there may be no shell rc, so fall back to the native
+# installer's location if claude is not on PATH.
+if command -v claude >/dev/null 2>&1; then
+  bin=claude
+else
+  bin="$HOME/.local/bin/claude"
+fi
+
+"$bin" --settings "$settings" "$@"

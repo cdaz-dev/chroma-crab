@@ -1,0 +1,9 @@
+{
+  "name": "Crab Green",
+  "base": "dark",
+  "overrides": {
+    "clawd_body": "#9ece6a",
+    "promptBorder": "#9ece6a",
+    "promptBorderShimmer": "#c0df9e"
+  }
+}

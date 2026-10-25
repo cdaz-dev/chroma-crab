@@ -1,0 +1,9 @@
+{
+  "name": "Crab Orange",
+  "base": "dark",
+  "overrides": {
+    "clawd_body": "#ff9e64",
+    "promptBorder": "#ff9e64",
+    "promptBorderShimmer": "#ffc09a"
+  }
+}
