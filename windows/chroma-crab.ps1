@@ -2,9 +2,38 @@
 # so you can tell terminal windows apart at a glance. Windows version of
 # bin/chroma-crab. Works in Windows PowerShell 5.1 and PowerShell 7.
 #
-# Run it through chroma-crab.cmd, which install.ps1 puts on your PATH.
+# Run it through chroma-crab.cmd, or through the claude.exe stand-in that
+# install.ps1 puts ahead of the real claude on PATH. This script then looks
+# past the stand-in to find the real claude.
 
 $ErrorActionPreference = 'Stop'
+
+# The real claude: the first one on PATH that isn't our stand-in. Only real
+# executables, so a `claude` function in your $PROFILE can't call itself.
+$shimDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'shim')).TrimEnd('\')
+$bin = Get-Command claude -All -CommandType Application -ErrorAction SilentlyContinue |
+  Where-Object { [IO.Path]::GetFullPath((Split-Path $_.Source)).TrimEnd('\') -ne $shimDir } |
+  Select-Object -First 1
+$bin = if ($bin) { $bin.Source } else { Join-Path $HOME '.local\bin\claude.exe' }
+if (-not (Test-Path -LiteralPath $bin)) {
+  [Console]::Error.WriteLine("chroma-crab: can't find claude on PATH. Is Claude Code installed?")
+  exit 127
+}
+
+# Only interactive sessions get a colour. Subcommands, print mode, and any
+# claude started from inside a chroma-crab session go straight through.
+$subcommands = @('agents', 'attach', 'auth', 'auto-mode', 'doctor', 'gateway', 'import', 'install', 'logs',
+  'mcp', 'plugin', 'plugins', 'project', 'respawn', 'rm', 'setup-token', 'stop', 'kill', 'ultrareview',
+  'update', 'upgrade')
+$passFlags = @('-p', '--print', '-v', '--version', '-h', '--help')
+$first = if ($args.Count -gt 0) { [string]$args[0] } else { '' }
+$pass = $env:CHROMA_CRAB_ACTIVE -or ($subcommands -contains $first) -or
+  @($args | Where-Object { $passFlags -contains [string]$_ }).Count -gt 0
+if ($pass) {
+  & $bin @args
+  exit $LASTEXITCODE
+}
+$env:CHROMA_CRAB_ACTIVE = '1'
 
 $config = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
 $state = Join-Path $PSScriptRoot 'state'
@@ -80,11 +109,6 @@ $settingsFile = Join-Path $state "$slug.settings.json"
 if (-not (Test-Path -LiteralPath (Join-Path $config "themes\$slug.json"))) {
   [Console]::Error.WriteLine("chroma-crab: no theme file at $config\themes\$slug.json (did you run install.ps1?)")
 }
-
-# Only real executables, so a `claude` function in your $PROFILE that calls
-# chroma-crab cannot end up calling itself.
-$bin = Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-$bin = if ($bin) { $bin.Source } else { Join-Path $HOME '.local\bin\claude.exe' }
 
 $code = 0
 try {

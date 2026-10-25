@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-# Keybind entry point for the Agent binding. Mirrors omarchy-agent's behaviour
-# (cd out of $HOME so Claude does not re-ask about trusting it, auto permissions)
-# but launches chroma-crab so each window gets its own colour.
-
-[[ $PWD == "$HOME" && -d $HOME/Work ]] && cd "$HOME/Work"
-
-exec chroma-crab --permission-mode auto "$@"

@@ -18,11 +18,27 @@ jobs:
       # macOS runs the tests with its stock bash 3.2 on purpose, since that is
       # what /usr/bin/env bash finds on a Mac without Homebrew bash.
       - run: /bin/bash test/run.sh
-      - name: install.sh
+      - name: install.sh and --uninstall
         run: |
-          BIN_DIR="$RUNNER_TEMP/bin" CLAUDE_CONFIG_DIR="$RUNNER_TEMP/cfg" ./install.sh
-          test -x "$RUNNER_TEMP/bin/chroma-crab"
-          test -f "$RUNNER_TEMP/cfg/themes/crab-coral.json"
+          export HOME="$RUNNER_TEMP/home" SHELL=/bin/bash
+          mkdir -p "$HOME" && echo 'echo existing' > "$HOME/.bashrc"
+          ./install.sh
+          ./install.sh
+          test -x "$HOME/.local/bin/chroma-crab"
+          test -f "$HOME/.claude/themes/crab-coral.json"
+          grep -q 'chroma-crab-shim' "$HOME/.local/share/chroma-crab/bin/claude"
+          test "$(grep -c '# chroma-crab$' "$HOME/.bashrc")" = 1
+          bash -ic 'type -P claude' 2>/dev/null | grep -q '.local/share/chroma-crab/bin/claude'
+          ./install.sh --uninstall
+          test "$(cat "$HOME/.bashrc")" = 'echo existing'
+          test ! -e "$HOME/.local/share/chroma-crab"
+      - name: zsh hotkey tools see the stand-in
+        if: runner.os == 'macOS'
+        run: |
+          export HOME="$RUNNER_TEMP/zhome" SHELL=/bin/zsh
+          mkdir -p "$HOME"
+          ./install.sh
+          zsh -c 'whence -p claude' | grep -q '.local/share/chroma-crab/bin/claude'
 
   windows:
     strategy:
@@ -37,11 +53,18 @@ jobs:
       - uses: actions/checkout@v4
       - run: $PSVersionTable.PSVersion
       - run: ./test/run.ps1
-      - name: install.ps1
+      - name: install.ps1 and -Uninstall
         run: |
           $env:CLAUDE_CONFIG_DIR = "$env:RUNNER_TEMP\cfg"
-          ./install.ps1 -Alias
-          if (-not (Test-Path "$env:LOCALAPPDATA\chroma-crab\bin\chroma-crab.cmd")) { throw 'shim missing' }
+          ./install.ps1
+          ./install.ps1
+          $dest = "$env:LOCALAPPDATA\chroma-crab"
+          if (-not (Test-Path "$dest\bin\chroma-crab.cmd")) { throw 'chroma-crab.cmd missing' }
+          if (-not (Test-Path "$dest\shim\claude.exe")) { throw 'claude.exe stand-in missing' }
           if (-not (Test-Path "$env:RUNNER_TEMP\cfg\themes\crab-coral.json")) { throw 'themes missing' }
-          if (-not ([Environment]::GetEnvironmentVariable('Path', 'User') -split ';' -contains "$env:LOCALAPPDATA\chroma-crab\bin")) { throw 'PATH not updated' }
-          if (-not ((Get-Content $PROFILE -Raw) -match 'chroma-crab')) { throw 'profile not updated' }
+          $userPath = @([Environment]::GetEnvironmentVariable('Path', 'User') -split ';')
+          if ($userPath[0] -ne "$dest\shim") { throw "stand-in is not first on user PATH: $($userPath -join ';')" }
+          if (@($userPath | Where-Object { $_ -like '*chroma-crab*' }).Count -ne 2) { throw 'PATH entries duplicated' }
+          ./install.ps1 -Uninstall
+          if (Test-Path $dest) { throw 'install folder left behind' }
+          if ([Environment]::GetEnvironmentVariable('Path', 'User') -like '*chroma-crab*') { throw 'PATH not cleaned' }

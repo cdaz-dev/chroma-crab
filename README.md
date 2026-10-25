@@ -17,7 +17,7 @@ macOS and Linux. The status line needs [jq](https://jqlang.org) (`brew install j
 ```sh
 git clone https://github.com/cdaz-dev/chroma-crab
 cd chroma-crab
-./install.sh --alias
+./install.sh
 ```
 
 Windows, in PowerShell:
@@ -25,12 +25,23 @@ Windows, in PowerShell:
 ```powershell
 git clone https://github.com/cdaz-dev/chroma-crab
 cd chroma-crab
-powershell -ExecutionPolicy Bypass -File install.ps1 -Alias
+powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
-Open a new terminal and run `claude` like you always do.
+Open a new terminal and run `claude` like you always do. If you open Claude Code from a keybind, log out and back in once so the keybind picks up the change.
 
-The alias flag makes plain `claude` go through chroma-crab. Leave it off if you'd rather keep `claude` as it is and type `chroma-crab` when you want a colour. Anything you pass, like `chroma-crab --resume`, goes straight through to Claude Code.
+## Keybinds and launchers
+
+You don't have to change any of your keybinds. The installer puts a small stand-in called `claude` ahead of the real one on your PATH, and the stand-in hands off to chroma-crab. A keybind, a terminal profile or an app launcher that runs `claude` will get a coloured crab the same way your shell does.
+
+- macOS and Linux: the stand-in is a shell script in `~/.local/share/chroma-crab/bin`. The installer adds that folder to the front of PATH in your shell startup files. On Linux it also adds it to `~/.config/environment.d/`, which is where many desktop sessions get the PATH their keybinds use.
+- Windows: the stand-in is a `claude.exe` that the installer compiles from `windows/claude-shim.cs` with the C# compiler built into Windows. It has to be an .exe because Windows Terminal profiles, and other programs that start `claude` directly, only look for `claude.exe`. It goes at the front of your user PATH. Windows reads the system PATH before the user one, so if Claude Code was installed for all users, the stand-in can't get in front of it and you'll want to point things at `chroma-crab` instead.
+
+A keybind that points at the full path of the real binary skips the stand-in. Change it to plain `claude`, or to `chroma-crab`.
+
+Some calls go straight to the real Claude Code without a colour: subcommands like `claude mcp` or `claude update`, print mode (`claude -p`), and any `claude` started from inside a session that already has one. Anything else you pass, like `claude --resume`, goes through unchanged.
+
+If you'd rather leave `claude` alone, install with `./install.sh --no-shim` (or `install.ps1 -NoShim`) and type `chroma-crab` when you want a colour.
 
 ## How it works
 
@@ -58,21 +69,25 @@ If you already have a status line you like, turn this one off with `CHROMA_CRAB_
 
 Copy any file in `themes/`, change the hex values, and save it as `~/.claude/themes/crab-<name>.json`. Then list it in `CHROMA_CRAB_COLOURS`. Themes can override plenty of other keys as well, so you can tint more of the interface if you want.
 
-The crab themes also show up in Claude Code's `/theme` menu. Picking one there saves it as your global theme. chroma-crab windows still get their own colour, but plain `claude` sessions will all use that one.
-
-## Omarchy
-
-On [Omarchy](https://omarchy.org), Super+Shift+Ctrl+A opens Claude Code through `omarchy-agent`, which runs plain `claude`. `extras/omarchy/` has a drop-in replacement script and the keybind override that points it at chroma-crab.
+The crab themes also show up in Claude Code's `/theme` menu. Picking one there saves it as your global theme. chroma-crab windows still get their own colour, but anything that skips chroma-crab will use the one you picked.
 
 ## Tests
 
-`test/run.sh` and `test/run.ps1` run the launcher against a fake `claude`, so they need no install or login. They check that two windows get different colours, that a crashed window's colour is freed, and that the status line draws the right bar. CI runs them on Ubuntu, macOS with its stock bash 3.2, Windows PowerShell 5.1 and PowerShell 7.
+`test/run.sh` and `test/run.ps1` run the launcher against a fake `claude`, so they need no install or login. They check that two windows get different colours, that a crashed window's colour is freed, that plain `claude` reaches chroma-crab through the stand-in, and that the status line draws the right bar. CI runs them on Ubuntu, macOS with its stock bash 3.2, Windows PowerShell 5.1 and PowerShell 7.
 
 ## Uninstall
 
-macOS and Linux: delete `~/.local/bin/chroma-crab`, `~/.local/bin/chroma-crab-statusline`, the `crab-*.json` files in `~/.claude/themes/`, and the alias line in your `.bashrc` or `.zshrc`.
+From the repo folder:
 
-Windows: delete `%LOCALAPPDATA%\chroma-crab`, the `crab-*.json` files in `%USERPROFILE%\.claude\themes\`, the `claude` function in your PowerShell profile, and the `chroma-crab\bin` entry in your user PATH.
+```sh
+./install.sh --uninstall
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall
+```
+
+This removes the scripts, the stand-in, the crab themes and the PATH lines the installer added.
 
 ## License
 

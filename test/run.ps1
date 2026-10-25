@@ -18,14 +18,14 @@ Copy-Item "$repo\windows\chroma-crab.cmd" "$app\bin"
 $shim = "$app\bin\chroma-crab.cmd"
 $state = "$app\state"
 
-# Fake claude: write the settings file it was given and the exported colour,
-# then stay open for FAKE_SLEEP seconds like a real session would.
+# Fake claude: write its arguments, the settings file it was given and the
+# exported colour, then stay open for FAKE_SLEEP seconds like a real session.
 Set-Content -LiteralPath "$fake\claude.cmd" -Encoding ASCII -Value @'
 @echo off
-if not "%~1"=="--settings" (echo expected --settings, got %1 1>&2 & exit /b 9)
-if "%~3"=="--fail" exit /b 7
-type "%~2" > "%FAKE_OUT%"
+echo args=%*> "%FAKE_OUT%"
+if "%~1"=="--settings" type "%~2" >> "%FAKE_OUT%"
 echo colour=%CHROMA_CRAB_COLOUR%>> "%FAKE_OUT%"
+echo %* | findstr /c:"--fail" > nul && exit /b 7
 if defined FAKE_SLEEP ping -n %FAKE_SLEEP% 127.0.0.1 > nul
 exit /b 0
 '@
@@ -80,7 +80,38 @@ $settings = Get-Content -LiteralPath "$state\crab-coral.settings.json" -Raw | Co
 $env:CHROMA_CRAB_STATUSLINE = '0'; $env:FAKE_OUT = "$tmp\f"; & $shim; $env:CHROMA_CRAB_STATUSLINE = $null
 Check 'status line opt-out'     { (Read-Out "$tmp\f") -notmatch 'statusLine' }
 
-# 6. Status line output, run the way Claude Code runs it: JSON on stdin.
+# 6. The claude.exe stand-in, built the way install.ps1 builds it and put
+#    first on PATH. Plain `claude` must reach chroma-crab and then the real
+#    (fake) claude behind it, however it's launched.
+New-Item -ItemType Directory -Force -Path "$app\shim" | Out-Null
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -TypeDefinition (Get-Content -Raw -LiteralPath '$repo\windows\claude-shim.cs') -OutputAssembly '$app\shim\claude.exe' -OutputType ConsoleApplication"
+Check 'stand-in builds' { Test-Path "$app\shim\claude.exe" }
+$plainPath = $env:Path
+$env:Path = "$app\shim;$plainPath"
+function First-Line($path) { ((Get-Content -LiteralPath $path) | Select-Object -First 1).Trim() }
+
+$env:FAKE_OUT = "$tmp\s1"; cmd /c claude --resume
+Check 'claude from cmd gets a colour'      { (Read-Out "$tmp\s1") -match 'colour=crab-coral' }
+Check 'arguments pass through'             { (First-Line "$tmp\s1") -match '^args=--settings .* --resume$' }
+$env:FAKE_OUT = "$tmp\s2"; & claude
+Check 'claude from PowerShell gets a colour' { (Read-Out "$tmp\s2") -match 'colour=crab-coral' }
+$env:FAKE_OUT = "$tmp\s3"
+$psi = New-Object System.Diagnostics.ProcessStartInfo 'claude', '--continue'
+$psi.UseShellExecute = $false
+$p = [System.Diagnostics.Process]::Start($psi); $p.WaitForExit()
+Check 'direct launch (like a Terminal profile) gets a colour' { (Read-Out "$tmp\s3") -match 'colour=crab-coral' }
+$env:FAKE_OUT = "$tmp\s4"; cmd /c claude mcp list
+Check 'subcommands skip the colour'        { (First-Line "$tmp\s4") -eq 'args=mcp list' }
+$env:FAKE_OUT = "$tmp\s5"; cmd /c claude -p "hello there"
+Check 'print mode skips the colour'        { (First-Line "$tmp\s5") -eq 'args=-p "hello there"' }
+$env:CHROMA_CRAB_ACTIVE = '1'; $env:FAKE_OUT = "$tmp\s6"; cmd /c claude; $env:CHROMA_CRAB_ACTIVE = $null
+Check 'nested claude skips the colour'     { (First-Line "$tmp\s6") -eq 'args=' }
+cmd /c claude --fail
+Check 'exit code passes through the stand-in' { $LASTEXITCODE -eq 7 }
+Check 'no claims left behind'              { @(Get-ChildItem "$state\*.pid").Count -eq 0 }
+$env:Path = $plainPath
+
+# 7. Status line output, run the way Claude Code runs it: JSON on stdin.
 function Invoke-StatusLine($json, $colour) {
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = (Get-Process -Id $PID).Path

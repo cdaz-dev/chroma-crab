@@ -12,12 +12,14 @@ export CLAUDE_CONFIG_DIR="$tmp/config"
 mkdir -p "$tmp/fake" "$CLAUDE_CONFIG_DIR/themes"
 cp "$repo"/themes/crab-*.json "$CLAUDE_CONFIG_DIR/themes/"
 
-# Fake claude: write the settings file it was given and the exported colour,
-# then stay open for FAKE_SLEEP seconds like a real session would.
+# Fake claude: write its arguments, the settings file it was given and the
+# exported colour, then stay open for FAKE_SLEEP seconds like a real session.
 cat > "$tmp/fake/claude" <<'EOF'
 #!/usr/bin/env bash
-[ "$1" = --settings ] || { echo "expected --settings, got $1" >&2; exit 9; }
-{ cat "$2"; echo "colour=$CHROMA_CRAB_COLOUR"; } > "$FAKE_OUT"
+{ echo "args=$*"
+  [ "${1:-}" = --settings ] && cat "$2"
+  echo "colour=${CHROMA_CRAB_COLOUR:-none}"; } > "$FAKE_OUT"
+case " $* " in *" --fail "*) exit 7 ;; esac
 sleep "${FAKE_SLEEP:-0}"
 EOF
 chmod +x "$tmp/fake/claude"
@@ -59,7 +61,26 @@ kill "$other" 2>/dev/null
 CHROMA_CRAB_STATUSLINE=0 FAKE_OUT="$tmp/e" "$repo/bin/chroma-crab"
 check "status line opt-out"     bash -c "! grep -q statusLine '$tmp/e'"
 
-# 5. Status line output.
+# 5. The claude stand-in that install.sh writes, first on PATH. Running plain
+#    `claude` must reach chroma-crab and then the real (fake) claude behind it.
+mkdir -p "$tmp/shim"
+printf '#!/bin/sh\n# chroma-crab-shim: test copy\nexec "%s" "$@"\n' "$repo/bin/chroma-crab" > "$tmp/shim/claude"
+chmod +x "$tmp/shim/claude"
+shimmed() { PATH="$tmp/shim:$PATH" "$@"; }
+FAKE_OUT="$tmp/s1" shimmed claude --resume
+check "plain claude gets a colour"     grep -q 'colour=crab-coral' "$tmp/s1"
+check "arguments pass through"         grep -q 'args=--settings .* --resume' "$tmp/s1"
+FAKE_OUT="$tmp/s2" shimmed claude mcp list
+check "subcommands skip the colour"    grep -qx 'args=mcp list' "$tmp/s2"
+FAKE_OUT="$tmp/s3" shimmed claude -p "hello there"
+check "print mode skips the colour"    grep -qx 'args=-p hello there' "$tmp/s3"
+FAKE_OUT="$tmp/s4" CHROMA_CRAB_ACTIVE=1 shimmed claude
+check "nested claude skips the colour" grep -qx 'args=' "$tmp/s4"
+FAKE_OUT="$tmp/s5" shimmed claude --fail; code=$?
+check "exit code passes through"       test "$code" = 7
+check "no claims left behind"          test -z "$(ls "$state"/*.pid 2>/dev/null)"
+
+# 6. Status line output.
 payload='{"model":{"display_name":"Opus"},"workspace":{"current_dir":"/x/proj/sub","project_dir":"/x/proj"},
 "context_window":{"total_input_tokens":84000,"context_window_size":200000,"used_percentage":42},"cost":{"total_cost_usd":1.5}}'
 out="$(printf '%s' "$payload" | CHROMA_CRAB_COLOUR=crab-teal "$repo/bin/chroma-crab-statusline")"
