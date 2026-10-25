@@ -1,5 +1,7 @@
 # claude-crab
 
+[![test](https://github.com/cdaz-dev/claude-crab/actions/workflows/test.yml/badge.svg)](https://github.com/cdaz-dev/claude-crab/actions/workflows/test.yml)
+
 A different crab colour for every Claude Code window.
 
 ![Three Claude Code windows side by side with a coral, a green and a purple crab](docs/windows.png)
