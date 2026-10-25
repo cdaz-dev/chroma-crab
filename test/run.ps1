@@ -146,4 +146,4 @@ Check 'turns red near the limit' { $hot.Contains("$esc[38;2;247;118;142m95%") }
 
 Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 Write-Host ''
-if ($script:fails -eq 0) { Write-Host 'all passed' } else { Write-Host "$($script:fails) failed"; exit 1 }
+if ($script:fails -eq 0) { Write-Host 'all passed'; exit 0 } else { Write-Host "$($script:fails) failed"; exit 1 }
