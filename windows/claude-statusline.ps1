@@ -13,7 +13,10 @@ $utf8 = New-Object System.Text.UTF8Encoding $false
 [Console]::OutputEncoding = $utf8
 $inv = [System.Globalization.CultureInfo]::InvariantCulture
 
-$payload = [Console]::In.ReadToEnd()
+# Windows PowerShell 5.1 hands piped stdin to the script as $input and leaves
+# [Console]::In empty. PowerShell 7 does the opposite. Try both.
+$payload = ($input | Out-String)
+if (-not $payload.Trim()) { $payload = [Console]::In.ReadToEnd() }
 if ($env:CLAUDE_STATUSLINE_DEBUG -eq '1') {
   [System.IO.File]::WriteAllText((Join-Path $HOME '.claude-statusline.json'), $payload)
 }
