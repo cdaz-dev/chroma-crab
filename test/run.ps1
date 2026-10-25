@@ -4,7 +4,7 @@
 $ErrorActionPreference = 'Stop'
 
 $repo = Split-Path $PSScriptRoot
-$tmp = Join-Path ([IO.Path]::GetTempPath()) ("claude-crab-test-" + [guid]::NewGuid())
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ("chroma-crab-test-" + [guid]::NewGuid())
 $app = Join-Path $tmp 'app'
 $fake = Join-Path $tmp 'fake'
 $env:CLAUDE_CONFIG_DIR = Join-Path $tmp 'config'
@@ -12,10 +12,10 @@ New-Item -ItemType Directory -Force -Path $app, $fake, "$env:CLAUDE_CONFIG_DIR\t
 Copy-Item "$repo\themes\crab-*.json" "$env:CLAUDE_CONFIG_DIR\themes"
 
 # Same layout install.ps1 creates: scripts in the app folder, the shim in bin.
-Copy-Item "$repo\windows\claude-crab.ps1", "$repo\windows\claude-statusline.ps1" $app
+Copy-Item "$repo\windows\chroma-crab.ps1", "$repo\windows\chroma-crab-statusline.ps1" $app
 New-Item -ItemType Directory -Force -Path "$app\bin" | Out-Null
-Copy-Item "$repo\windows\claude-crab.cmd" "$app\bin"
-$shim = "$app\bin\claude-crab.cmd"
+Copy-Item "$repo\windows\chroma-crab.cmd" "$app\bin"
+$shim = "$app\bin\chroma-crab.cmd"
 $state = "$app\state"
 
 # Fake claude: write the settings file it was given and the exported colour,
@@ -25,7 +25,7 @@ Set-Content -LiteralPath "$fake\claude.cmd" -Encoding ASCII -Value @'
 if not "%~1"=="--settings" (echo expected --settings, got %1 1>&2 & exit /b 9)
 if "%~3"=="--fail" exit /b 7
 type "%~2" > "%FAKE_OUT%"
-echo colour=%CLAUDE_CRAB_COLOUR%>> "%FAKE_OUT%"
+echo colour=%CHROMA_CRAB_COLOUR%>> "%FAKE_OUT%"
 if defined FAKE_SLEEP ping -n %FAKE_SLEEP% 127.0.0.1 > nul
 exit /b 0
 '@
@@ -55,7 +55,7 @@ Wait-For "$tmp\b"
 Check 'first window is coral'   { (Read-Out "$tmp\a") -match 'colour=crab-coral' }
 Check 'second window is orange' { (Read-Out "$tmp\b") -match 'colour=crab-orange' }
 Check 'theme passed through settings' { (Read-Out "$tmp\a") -match '"theme":\s*"custom:crab-coral"' }
-Check 'status line wired in'    { (Read-Out "$tmp\a") -match 'claude-statusline\.ps1' }
+Check 'status line wired in'    { (Read-Out "$tmp\a") -match 'chroma-crab-statusline\.ps1' }
 Check 'claim file exists while open' { Test-Path "$state\crab-coral.pid" }
 $a.WaitForExit(); $b.WaitForExit()
 Check 'claim released on exit'  { -not (Test-Path "$state\crab-coral.pid") }
@@ -77,19 +77,19 @@ Check 'args and exit code passed through' { $LASTEXITCODE -eq 7 }
 $settings = Get-Content -LiteralPath "$state\crab-coral.settings.json" -Raw | ConvertFrom-Json
 
 # 5. Status line can be turned off.
-$env:CLAUDE_CRAB_STATUSLINE = '0'; $env:FAKE_OUT = "$tmp\f"; & $shim; $env:CLAUDE_CRAB_STATUSLINE = $null
+$env:CHROMA_CRAB_STATUSLINE = '0'; $env:FAKE_OUT = "$tmp\f"; & $shim; $env:CHROMA_CRAB_STATUSLINE = $null
 Check 'status line opt-out'     { (Read-Out "$tmp\f") -notmatch 'statusLine' }
 
 # 6. Status line output, run the way Claude Code runs it: JSON on stdin.
 function Invoke-StatusLine($json, $colour) {
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = (Get-Process -Id $PID).Path
-  $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$app\claude-statusline.ps1`""
+  $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$app\chroma-crab-statusline.ps1`""
   $psi.UseShellExecute = $false
   $psi.RedirectStandardInput = $true
   $psi.RedirectStandardOutput = $true
   $psi.StandardOutputEncoding = New-Object System.Text.UTF8Encoding $false
-  $psi.EnvironmentVariables['CLAUDE_CRAB_COLOUR'] = $colour
+  $psi.EnvironmentVariables['CHROMA_CRAB_COLOUR'] = $colour
   $p = [System.Diagnostics.Process]::Start($psi)
   $in = New-Object System.IO.StreamWriter($p.StandardInput.BaseStream, (New-Object System.Text.UTF8Encoding $false))
   $in.Write($json); $in.Close()

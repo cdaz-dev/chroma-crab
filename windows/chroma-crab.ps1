@@ -1,8 +1,8 @@
 # Launch Claude Code with a crab colour that no other open window is using,
 # so you can tell terminal windows apart at a glance. Windows version of
-# bin/claude-crab. Works in Windows PowerShell 5.1 and PowerShell 7.
+# bin/chroma-crab. Works in Windows PowerShell 5.1 and PowerShell 7.
 #
-# Run it through claude-crab.cmd, which install.ps1 puts on your PATH.
+# Run it through chroma-crab.cmd, which install.ps1 puts on your PATH.
 
 $ErrorActionPreference = 'Stop'
 
@@ -10,8 +10,8 @@ $config = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Pat
 $state = Join-Path $PSScriptRoot 'state'
 New-Item -ItemType Directory -Force -Path $state | Out-Null
 
-# Handed out in this order. Override with e.g. $env:CLAUDE_CRAB_COLOURS = 'crab-teal crab-pink'
-$colours = if ($env:CLAUDE_CRAB_COLOURS) { $env:CLAUDE_CRAB_COLOURS -split '\s+' | Where-Object { $_ } } else {
+# Handed out in this order. Override with e.g. $env:CHROMA_CRAB_COLOURS = 'crab-teal crab-pink'
+$colours = if ($env:CHROMA_CRAB_COLOURS) { $env:CHROMA_CRAB_COLOURS -split '\s+' | Where-Object { $_ } } else {
   @('crab-coral', 'crab-orange', 'crab-yellow', 'crab-green', 'crab-teal',
     'crab-cyan', 'crab-blue', 'crab-purple', 'crab-pink', 'crab-silver')
 }
@@ -56,14 +56,14 @@ foreach ($c in $colours) {
 if (-not $slug) { $slug = $colours | Get-Random }
 
 # The status line reads this to tint its context gauge to match the crab.
-$env:CLAUDE_CRAB_COLOUR = $slug
+$env:CHROMA_CRAB_COLOUR = $slug
 
 # Settings go in through a file. Passing a JSON string to a native exe from
 # Windows PowerShell 5.1 mangles the quotes. --settings merges over
 # settings.json key by key, so nothing else in your config changes.
 $settings = @{ theme = "custom:$slug" }
-$statusScript = Join-Path $PSScriptRoot 'claude-statusline.ps1'
-if ($env:CLAUDE_CRAB_STATUSLINE -ne '0' -and (Test-Path -LiteralPath $statusScript)) {
+$statusScript = Join-Path $PSScriptRoot 'chroma-crab-statusline.ps1'
+if ($env:CHROMA_CRAB_STATUSLINE -ne '0' -and (Test-Path -LiteralPath $statusScript)) {
   # Same PowerShell that is running this script. Forward slashes so the command
   # survives whichever shell Claude Code hands it to (cmd or Git Bash).
   $shell = $me.Path -replace '\\', '/'
@@ -78,11 +78,11 @@ $settingsFile = Join-Path $state "$slug.settings.json"
 [System.IO.File]::WriteAllText($settingsFile, ($settings | ConvertTo-Json -Depth 4))
 
 if (-not (Test-Path -LiteralPath (Join-Path $config "themes\$slug.json"))) {
-  [Console]::Error.WriteLine("claude-crab: no theme file at $config\themes\$slug.json (did you run install.ps1?)")
+  [Console]::Error.WriteLine("chroma-crab: no theme file at $config\themes\$slug.json (did you run install.ps1?)")
 }
 
 # Only real executables, so a `claude` function in your $PROFILE that calls
-# claude-crab cannot end up calling itself.
+# chroma-crab cannot end up calling itself.
 $bin = Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 $bin = if ($bin) { $bin.Source } else { Join-Path $HOME '.local\bin\claude.exe' }
 

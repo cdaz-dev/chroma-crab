@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 # Launch Claude Code with a crab colour that no other open window is using,
 # so you can tell terminal windows apart at a glance. macOS and Linux.
-# Windows has its own version in windows/claude-crab.ps1.
+# Windows has its own version in windows/chroma-crab.ps1.
 
 set -u
 
 CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-STATE="${XDG_STATE_HOME:-$HOME/.local/state}/claude-crab"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/chroma-crab"
 mkdir -p "$STATE"
 
-# Handed out in this order. Override with e.g. CLAUDE_CRAB_COLOURS="crab-teal crab-pink".
+# Handed out in this order. Override with e.g. CHROMA_CRAB_COLOURS="crab-teal crab-pink".
 # shellcheck disable=SC2206
-COLOURS=(${CLAUDE_CRAB_COLOURS:-crab-coral crab-orange crab-yellow crab-green crab-teal
+COLOURS=(${CHROMA_CRAB_COLOURS:-crab-coral crab-orange crab-yellow crab-green crab-teal
          crab-cyan crab-blue crab-purple crab-pink crab-silver})
 
 holder_alive() {
   [ -n "$1" ] && kill -0 "$1" 2>/dev/null || return 1
-  # Guard against PID reuse: the holder must still be a claude process.
+  # Guard against PID reuse: the holder must still be a chroma-crab process.
   # ps -o command= works the same on macOS and Linux; /proc does not exist on macOS.
-  ps -p "$1" -o command= 2>/dev/null | grep -q claude
+  ps -p "$1" -o command= 2>/dev/null | grep -q chroma-crab
 }
 
 # Drop claim files whose window is gone.
@@ -42,22 +42,22 @@ done
 [ -n "$claim" ] && trap 'rm -f "$claim"' EXIT HUP INT TERM
 
 # The status line reads this to tint its context gauge to match the crab.
-export CLAUDE_CRAB_COLOUR="$slug"
+export CHROMA_CRAB_COLOUR="$slug"
 
 # Settings go in through a file rather than a JSON string on the command line.
 # --settings merges over ~/.claude/settings.json key by key, so nothing else
 # in your config changes.
 here="$(cd "$(dirname "$0")" && pwd)"
 settings="$STATE/$slug.settings.json"
-if [ "${CLAUDE_CRAB_STATUSLINE:-1}" = 0 ] || [ ! -x "$here/claude-statusline" ]; then
+if [ "${CHROMA_CRAB_STATUSLINE:-1}" = 0 ] || [ ! -x "$here/chroma-crab-statusline" ]; then
   printf '{"theme":"custom:%s"}\n' "$slug" > "$settings"
 else
   printf '{"theme":"custom:%s","statusLine":{"type":"command","command":"'\''%s'\''","padding":0}}\n' \
-    "$slug" "$here/claude-statusline" > "$settings"
+    "$slug" "$here/chroma-crab-statusline" > "$settings"
 fi
 
 if [ ! -f "$CONFIG/themes/$slug.json" ]; then
-  echo "claude-crab: no theme file at $CONFIG/themes/$slug.json (did you run install.sh?)" >&2
+  echo "chroma-crab: no theme file at $CONFIG/themes/$slug.json (did you run install.sh?)" >&2
 fi
 
 # From a desktop keybind there may be no shell rc, so fall back to the native

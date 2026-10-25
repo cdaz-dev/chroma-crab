@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Claude Code status line: a visual context-window gauge. macOS and Linux,
-# needs jq. Windows has its own version in windows/claude-statusline.ps1.
+# needs jq. Windows has its own version in windows/chroma-crab-statusline.ps1.
 #
 # Reads the status-line JSON on stdin (see `context_window` in the payload) and
 # prints one line. The bar is tinted with this window's crab colour, so the
-# gauge doubles as the window identity marker. See claude-crab.
+# gauge doubles as the window identity marker. See chroma-crab.
 set -u
 
 payload=$(cat)
 
-if [ "${CLAUDE_STATUSLINE_DEBUG:-0}" = 1 ]; then
+if [ "${CHROMA_CRAB_DEBUG:-0}" = 1 ]; then
   mkdir -p "$HOME/.cache"
-  printf '%s\n' "$payload" > "$HOME/.cache/claude-statusline.json"
+  printf '%s\n' "$payload" > "$HOME/.cache/chroma-crab-statusline.json"
 fi
 
 # Split on US (0x1f), not tab: tab is an IFS whitespace char, so consecutive
@@ -46,10 +46,10 @@ fmt() {
 }
 
 # --- colours ---------------------------------------------------------------
-# The crab slug is exported by the claude-crab launcher; look its hex up in the
+# The crab slug is exported by the chroma-crab launcher; look its hex up in the
 # theme file so adding a new crab colour needs no change here.
 crab_hex="#7aa2f7"
-slug="${CLAUDE_CRAB_COLOUR:-}"
+slug="${CHROMA_CRAB_COLOUR:-}"
 theme="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/themes/$slug.json"
 if [ -n "$slug" ] && [ -f "$theme" ]; then
   h=$(jq -r '.overrides.clawd_body // empty' "$theme")

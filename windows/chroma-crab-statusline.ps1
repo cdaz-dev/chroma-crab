@@ -1,9 +1,9 @@
 # Claude Code status line: a visual context-window gauge. Windows version of
-# bin/claude-statusline. Works in Windows PowerShell 5.1 and PowerShell 7.
+# bin/chroma-crab-statusline. Works in Windows PowerShell 5.1 and PowerShell 7.
 #
 # Reads the status-line JSON on stdin and prints one line. The bar is tinted
 # with this window's crab colour, so the gauge doubles as the window identity
-# marker. See claude-crab.ps1.
+# marker. See chroma-crab.ps1.
 #
 # Every non-ASCII character is built from its code point, because Windows
 # PowerShell 5.1 reads a BOM-less script file as ANSI and would garble them.
@@ -17,8 +17,8 @@ $inv = [System.Globalization.CultureInfo]::InvariantCulture
 # [Console]::In empty. PowerShell 7 does the opposite. Try both.
 $payload = ($input | Out-String)
 if (-not $payload.Trim()) { $payload = [Console]::In.ReadToEnd() }
-if ($env:CLAUDE_STATUSLINE_DEBUG -eq '1') {
-  [System.IO.File]::WriteAllText((Join-Path $HOME '.claude-statusline.json'), $payload)
+if ($env:CHROMA_CRAB_DEBUG -eq '1') {
+  [System.IO.File]::WriteAllText((Join-Path $HOME '.chroma-crab-statusline.json'), $payload)
 }
 try { $j = $payload | ConvertFrom-Json } catch { $j = $null }
 
@@ -51,10 +51,10 @@ function Format-Tokens([double]$n) {
 }
 
 # --- colours ---------------------------------------------------------------
-# The crab slug is exported by claude-crab; look its hex up in the theme file
+# The crab slug is exported by chroma-crab; look its hex up in the theme file
 # so adding a new crab colour needs no change here.
 $crabHex = '#7aa2f7'
-$slug = $env:CLAUDE_CRAB_COLOUR
+$slug = $env:CHROMA_CRAB_COLOUR
 $config = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
 if ($slug) {
   $themeFile = Join-Path $config "themes\$slug.json"

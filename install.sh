@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Install claude-crab on macOS or Linux.
+# Install chroma-crab on macOS or Linux.
 #
-#   ./install.sh            install claude-crab and claude-statusline
+#   ./install.sh            install chroma-crab and chroma-crab-statusline
 #   ./install.sh --alias    also make plain `claude` pick a colour
 #
 # BIN_DIR defaults to ~/.local/bin. Themes go to ~/.claude/themes
@@ -16,10 +16,10 @@ alias=0
 [ "${1:-}" = "--alias" ] && alias=1
 
 mkdir -p "$bin_dir" "$theme_dir"
-cp "$src/bin/claude-crab" "$src/bin/claude-statusline" "$bin_dir/"
-chmod +x "$bin_dir/claude-crab" "$bin_dir/claude-statusline"
+cp "$src/bin/chroma-crab" "$src/bin/chroma-crab-statusline" "$bin_dir/"
+chmod +x "$bin_dir/chroma-crab" "$bin_dir/chroma-crab-statusline"
 cp "$src"/themes/crab-*.json "$theme_dir/"
-echo "Installed claude-crab and claude-statusline to $bin_dir"
+echo "Installed chroma-crab and chroma-crab-statusline to $bin_dir"
 echo "Installed $(ls "$src"/themes/crab-*.json | wc -l | tr -d ' ') crab themes to $theme_dir"
 
 if ! command -v jq >/dev/null 2>&1; then
@@ -40,10 +40,10 @@ if [ "$alias" = 1 ]; then
     zsh) rc="$HOME/.zshrc" ;;
     *)   rc="$HOME/.bashrc" ;;
   esac
-  if grep -q 'claude-crab' "$rc" 2>/dev/null; then
-    echo "$rc already mentions claude-crab, leaving it alone."
+  if grep -q 'chroma-crab' "$rc" 2>/dev/null; then
+    echo "$rc already mentions chroma-crab, leaving it alone."
   else
-    printf '\n# claude-crab: give every Claude Code window its own crab colour\nalias claude=claude-crab\n' >> "$rc"
-    echo "Added 'alias claude=claude-crab' to $rc. Open a new terminal to use it."
+    printf '\n# chroma-crab: give every Claude Code window its own crab colour\nalias claude=chroma-crab\n' >> "$rc"
+    echo "Added 'alias claude=chroma-crab' to $rc. Open a new terminal to use it."
   fi
 fi

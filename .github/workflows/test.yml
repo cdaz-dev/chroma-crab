@@ -21,7 +21,7 @@ jobs:
       - name: install.sh
         run: |
           BIN_DIR="$RUNNER_TEMP/bin" CLAUDE_CONFIG_DIR="$RUNNER_TEMP/cfg" ./install.sh
-          test -x "$RUNNER_TEMP/bin/claude-crab"
+          test -x "$RUNNER_TEMP/bin/chroma-crab"
           test -f "$RUNNER_TEMP/cfg/themes/crab-coral.json"
 
   windows:
@@ -41,7 +41,7 @@ jobs:
         run: |
           $env:CLAUDE_CONFIG_DIR = "$env:RUNNER_TEMP\cfg"
           ./install.ps1 -Alias
-          if (-not (Test-Path "$env:LOCALAPPDATA\claude-crab\bin\claude-crab.cmd")) { throw 'shim missing' }
+          if (-not (Test-Path "$env:LOCALAPPDATA\chroma-crab\bin\chroma-crab.cmd")) { throw 'shim missing' }
           if (-not (Test-Path "$env:RUNNER_TEMP\cfg\themes\crab-coral.json")) { throw 'themes missing' }
-          if (-not ([Environment]::GetEnvironmentVariable('Path', 'User') -split ';' -contains "$env:LOCALAPPDATA\claude-crab\bin")) { throw 'PATH not updated' }
-          if (-not ((Get-Content $PROFILE -Raw) -match 'claude-crab')) { throw 'profile not updated' }
+          if (-not ([Environment]::GetEnvironmentVariable('Path', 'User') -split ';' -contains "$env:LOCALAPPDATA\chroma-crab\bin")) { throw 'PATH not updated' }
+          if (-not ((Get-Content $PROFILE -Raw) -match 'chroma-crab')) { throw 'profile not updated' }
